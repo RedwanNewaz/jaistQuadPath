@@ -22,12 +22,15 @@ public:
     explicit planner(QWidget *parent = 0);
     ~planner();
     void searchSpace();
+    float isLeft( QPoint V, QPoint R, QPoint P);
 
 
 
 private slots:
 
     void graphInit();
+
+    void notify(QString);
 
     void mapDraw();
 
@@ -42,7 +45,7 @@ private slots:
 
     void on_pointDraw_clicked();
 
-    float isLeft( QPoint V, QPoint R, QPoint P);
+
 
 
 private:

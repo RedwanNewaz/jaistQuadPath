@@ -14,9 +14,12 @@ TEMPLATE = app
 
 SOURCES += main.cpp\
         planner.cpp \
-    qcustomplot.cpp
+    qcustomplot.cpp \
+    Dstar.cpp
 
 HEADERS  += planner.h \
-    qcustomplot.h
+    qcustomplot.h \
+    ._Dstar.h \
+    Dstar.h
 
 FORMS    += planner.ui

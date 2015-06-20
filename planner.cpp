@@ -1,6 +1,7 @@
 #include "planner.h"
 #include "ui_planner.h"
 #include "search.h"
+#include "Dstar.h"
 #include <QDebug>
 #include <QtCore>
 planner::planner(QWidget *parent) :
@@ -76,6 +77,11 @@ planner::~planner()
     ui->plot->setInteractions(QCP::iRangeDrag | QCP::iRangeZoom | QCP::iSelectPlottables);
 }
 
+ void planner::notify(QString msg){
+     QString pre= "\n"+ui->notification->toPlainText();
+     ui->notification->setPlainText(msg+pre);
+ }
+
  float planner::isLeft( QPoint V, QPoint R, QPoint P){
     float position =  (R.x()-V.x())*(P.y()-V.y()) - (R.y()-V.y())*(P.x()-V.x());
     return position;
@@ -139,6 +145,7 @@ planner::~planner()
  */
 
 
+
 bool xLessThan(const QPoint &p1, const QPoint &p2){ return p1.x()<p2.x();}
 bool yLessThan(const QPoint &p1, const QPoint &p2){  return p1.y()<p2.y();}
 usermap map2vector(QVector<QPoint>localmap){
@@ -150,42 +157,96 @@ usermap map2vector(QVector<QPoint>localmap){
     return map;
 }
 
+int localmapWn( QPoint P, QVector<double> Vx, QVector<double> Vy  )
+   {
+   int    wn = 0;
+   planner *plan;
+    QPoint R(0,0);
+    QVector<QPoint>lmp;
+    qSort(Vx);
+    qSort(Vy);
+    QPoint XY_max(Vx.first(),Vy.first()),XY_min(Vx.last(),Vy.last());
+    lmp.push_back(XY_max);
+    lmp.push_back(XY_min);
+    foreach(QPoint V,lmp){
+
+       if (V.y() <= P.y()) {
+           if (R.y() > P.y()){
+
+               if (plan->isLeft( V, R, P) > 0)
+                   ++wn;
+           }
+       }
+       else {                        // start y > P.y (no test needed)
+           if (R.y()  <= P.y()){
+
+                if (plan->isLeft( V, R, P) < 0)  // P right of  edge
+                    --wn;            // have  a valid down intersect
+           }
+       }
+      }
+        return wn;
+   }
+
+
+float pointDist(QPoint p, QPoint q){
+    return sqrt(pow(p.x()-q.x(),2)+pow(p.y()-q.y(),2));
+}
+
+
  void planner::searchSpace(){
     QString msg;
     msg=ui->notification->toPlainText()+"\n"+"search\t";
-
+    Dstar *dstar = new Dstar();
+    list<state> mypath;
     int count=0;
-    bool loopbreak=false;
-    float dist,min=00;
+
+
     QPoint goal(cmd.x,cmd.y);
+    if(wn_PnPoly(goal)!=-1){
+        notify("Error!!!");
+        return;}
+    qDebug()<<"goal\t"<<goal;
+    QVector<double> searchX,searchY;
+
+//    initialize dstar
+    dstar->init(R.x(),R.y(),goal.x(),goal.y());
+
 
     for (float i=R.y();i<=lim.ymax;i+=resolution){
 
         for(float j=lim.xmin;j<=lim.xmax;j+=resolution)
         {
-            QPoint p(i,j);
-            if(wn_PnPoly(p)==-1){
-                count+=1;
-                search_space.push_back(p);
-//                dist=(p.x()-goal.x())*(p.x()-goal.x())+(p.y()-goal.y())*(p.y()-goal.y());
-//                if (dist>=1){
-//                    min=dist;
+            QPoint p(j,i);
+            if(wn_PnPoly(p)==-1){//add cost of each cell
+                dstar->updateCell(j,i,1/pointDist(p,goal));
+                if(pointDist(p,goal)<=0.02 && count<=3)
+                {
+                      searchX.push_back(j);
+                      searchY.push_back(i);
+                      count+=1;
+                }
 
-//                    msg+="\t found \t";
-//                    qDebug()<<QString::number(dist);
-//                    loopbreak=true;
-//                    break;
-//                }
             }
-
         }
-        if(loopbreak)
-            break;
-
     }
-    msg+=QString::number(count)+"\t"+QString::number(min);
-    ui->notification->setPlainText(msg);
-    qDebug()<<search_space.size();
+    QPoint mG(searchX.first(),searchY.first()); //moderate goal
+    QVector<double>pathx,pathy;
+//    update goal position
+    dstar->updateGoal(mG.x(),mG.y());
+    dstar->replan();
+    mypath=dstar->getPath();
+    foreach(state path,mypath){
+        pathx.push_back(path.x);
+        pathy.push_back(path.y);
+    }
+
+    msg+="X= "+QString::number(mG.x())+"\tY= "+QString::number(mG.y());
+    notify(msg);
+    fermatSpiral1->setData(pathx, pathy);
+    ui->plot->graph(1)->setData(searchX, searchY);
+    ui->plot->replot();
+
 }
 
  void planner:: pointDraw()
@@ -194,7 +255,9 @@ usermap map2vector(QVector<QPoint>localmap){
      QString x1=ui->xBox->toPlainText();
      QString y1=ui->yBox->toPlainText();
      double center_x=x1.toDouble();
-     double center_y=y1.toDouble();;
+     double center_y=y1.toDouble();
+     cmd.x=center_x;
+     cmd.y=center_y;
 
 //     draw a line
      QVector<double>x,y;
@@ -209,7 +272,7 @@ usermap map2vector(QVector<QPoint>localmap){
      QPoint point(center_x,center_y);
      int i=wn_PnPoly(point);
      qDebug()<<"point "<< point<<"wn\t"<<QString::number(i);
-     ui->notification->setPlainText("wn\t"+QString::number(i));
+     ui->notification->setPlainText("goal is\t"+QString::number(i*-1));
 
 
 }
