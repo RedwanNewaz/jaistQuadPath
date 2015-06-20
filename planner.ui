@@ -80,6 +80,19 @@
       <item row="2" column="0">
        <layout class="QHBoxLayout" name="horizontalLayout_3">
         <item>
+         <widget class="QPushButton" name="pointDraw">
+          <property name="maximumSize">
+           <size>
+            <width>100</width>
+            <height>16777215</height>
+           </size>
+          </property>
+          <property name="text">
+           <string>pointCheck</string>
+          </property>
+         </widget>
+        </item>
+        <item>
          <widget class="QPushButton" name="mapDraw">
           <property name="maximumSize">
            <size>
@@ -89,19 +102,6 @@
           </property>
           <property name="text">
            <string>mapDraw</string>
-          </property>
-         </widget>
-        </item>
-        <item>
-         <widget class="QPushButton" name="pushButton_3">
-          <property name="maximumSize">
-           <size>
-            <width>100</width>
-            <height>16777215</height>
-           </size>
-          </property>
-          <property name="text">
-           <string>robotPose</string>
           </property>
          </widget>
         </item>
@@ -130,32 +130,6 @@
        <widget class="QPlainTextEdit" name="notification"/>
       </item>
      </layout>
-    </item>
-    <item>
-     <widget class="QPushButton" name="plannerButton">
-      <property name="maximumSize">
-       <size>
-        <width>100</width>
-        <height>16777215</height>
-       </size>
-      </property>
-      <property name="text">
-       <string>planner</string>
-      </property>
-     </widget>
-    </item>
-    <item>
-     <widget class="QPushButton" name="pointDraw">
-      <property name="maximumSize">
-       <size>
-        <width>100</width>
-        <height>16777215</height>
-       </size>
-      </property>
-      <property name="text">
-       <string>pointCheck</string>
-      </property>
-     </widget>
     </item>
    </layout>
   </widget>

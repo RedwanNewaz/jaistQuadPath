@@ -4,6 +4,7 @@
 #include "Dstar.h"
 #include <QDebug>
 #include <QtCore>
+#include <cmath>
 planner::planner(QWidget *parent) :
     QMainWindow(parent),
     ui(new Ui::planner)
@@ -16,13 +17,7 @@ planner::planner(QWidget *parent) :
     ui->yBox->setText("Y");
     ui->zBox->setText("Z");
 
-    QPoint map_max,map_min;
-        map_max.setX(-100);
-        map_max.setY(10);
-        map_min.setX(100);
-        map_min.setY(10);
-    map.push_back(map_max);
-    map.push_back(map_min);
+    populateMap();
 }
 
 planner::~planner()
@@ -31,6 +26,7 @@ planner::~planner()
 }
 
  void planner::graphInit(){
+     line=0;
     // add two new graphs and set their look:
     ui->plot->addGraph();
     ui->plot->graph(0)->setPen(QPen(Qt::blue)); // line color blue for first graph
@@ -78,8 +74,10 @@ planner::~planner()
 }
 
  void planner::notify(QString msg){
+     line++;
+     QString no=QString::number(line)+" :";
      QString pre= "\n"+ui->notification->toPlainText();
-     ui->notification->setPlainText(msg+pre);
+     ui->notification->setPlainText(no+msg+pre);
  }
 
  float planner::isLeft( QPoint V, QPoint R, QPoint P){
@@ -91,9 +89,11 @@ planner::~planner()
     {
     int    wn = 0;    // the  winding number counter
 
+    bool clock,anticlock;
 
     // loop through all edges of the polygon
-    foreach(QPoint V,map){
+//    clock wise rotation
+    foreach(QPoint V,search_space){
 
         if (V.y() <= P.y()) {
             if (R.y() > P.y()){
@@ -110,7 +110,32 @@ planner::~planner()
             }
         }
        }
-         return wn;
+    clock=-1*wn;
+//    counter clock rotation
+    wn=0;
+    foreach(QPoint V,search_space){
+
+        if (V.y() <= P.y()) {
+            if (R.y() > P.y()){
+
+                if (isLeft( V, R, P) < 0)
+                    ++wn;
+            }
+        }
+        else {                        // start y > P.y (no test needed)
+            if (R.y()  <= P.y()){
+
+                 if (isLeft( V, R, P) > 0)  // P right of  edge
+                     --wn;            // have  a valid down intersect
+            }
+        }
+       }
+    anticlock=-1*wn;
+
+    if (anticlock && clock)
+        return -1;
+    else
+        return wn;
     }
 
 
@@ -194,18 +219,45 @@ float pointDist(QPoint p, QPoint q){
 }
 
 
+void planner::populateMap(){
+    QPoint map_max,map_min;
+        map_max.setX(-100);
+        map_max.setY(10);
+        map_min.setX(100);
+        map_min.setY(10);
+
+//        make a sine wave to indicate the boundary
+        //            calculate R
+        float R=pointDist(QPoint(0,0),QPoint(-100,10));
+        float phi=0;
+        for (float theta=0;theta<=2*M_PI;theta+=resolution){
+            double x=R*cos(theta);
+            double y=R*sin(theta);
+            if(x>=-100 && x<=100 && y>10){
+                phi+=resolution;
+                phi=fmod(phi,2*M_PI);
+                y+=sin(phi);
+
+                map.push_back(QPoint(x,y));
+
+            }
+        }
+
+
+
+}
+
+
  void planner::searchSpace(){
     QString msg;
-    msg=ui->notification->toPlainText()+"\n"+"search\t";
+    msg="search\t";
     Dstar *dstar = new Dstar();
     list<state> mypath;
     int count=0;
 
 
     QPoint goal(cmd.x,cmd.y);
-    if(wn_PnPoly(goal)!=-1){
-        notify("Error!!!");
-        return;}
+
     qDebug()<<"goal\t"<<goal;
     QVector<double> searchX,searchY;
 
@@ -228,6 +280,7 @@ float pointDist(QPoint p, QPoint q){
                 }
 
             }
+            if(count>1)break;
         }
     }
     QPoint mG(searchX.first(),searchY.first()); //moderate goal
@@ -244,7 +297,7 @@ float pointDist(QPoint p, QPoint q){
     msg+="X= "+QString::number(mG.x())+"\tY= "+QString::number(mG.y());
     notify(msg);
     fermatSpiral1->setData(pathx, pathy);
-    ui->plot->graph(1)->setData(searchX, searchY);
+//    ui->plot->graph(1)->setData(searchX, searchY);
     ui->plot->replot();
 
 }
@@ -272,7 +325,6 @@ float pointDist(QPoint p, QPoint q){
      QPoint point(center_x,center_y);
      int i=wn_PnPoly(point);
      qDebug()<<"point "<< point<<"wn\t"<<QString::number(i);
-     ui->notification->setPlainText("goal is\t"+QString::number(i*-1));
 
 
 }
@@ -297,29 +349,45 @@ float pointDist(QPoint p, QPoint q){
     R.setX(cmd.x);
     R.setY(cmd.y);
 
+//   dont modify real map
+    foreach(QPoint p,map)
+     search_space.push_back(p);
+
 //    detrmine the area of local map
-    qSort(map.begin(),map.end(),xLessThan);
-    qSort(map.begin(),map.end(),yLessThan);
-    lim.xmax=map.last().x();
-    lim.xmin=map.first().x();
-    lim.ymax=map.last().y();
-    lim.ymin=map.first().y();
 
-//    Draw the local map
-    QVector<double> x,y;
-    x.push_back(lim.xmax);
-    x.push_back(R.x());
-    x.push_back(lim.xmin);
+    qSort(search_space.begin(),search_space.end(),xLessThan);
+    lim.xmax=search_space.last().x();
+    lim.xmin=search_space.first().x();
+    qSort(search_space.begin(),search_space.end(),yLessThan);
+    lim.ymax=search_space.last().y();
+    lim.ymin=search_space.first().y();
 
-    y.push_back(lim.ymax);
-    y.push_back(R.y());
-    y.push_back(lim.ymin);
+//    modify the local map
+    map.push_front(QPoint(lim.xmax,lim.ymin));
 
-//     connect curve by red color
+//    left most point
+    QPoint left(lim.xmin,lim.ymin);
+    QPoint right(lim.xmax,lim.ymin);
+    QPoint start(0,0);
+    QVector<QPoint>blueMap;
+
+    blueMap.push_back(left);
+
+    blueMap.push_back(start);
+
+    blueMap.push_back(right);
+
+    qDebug()<<left<<right<<start;
+
+
+
+   usermap blueline=map2vector(blueMap);
+
+//     connect curve by green color
     usermap slam=map2vector(map);
-    ui->plot->graph(0)->setData(x, y);
-    ui->plot->graph(1)->setData(slam.x, slam.y);// red line for map
-    ui->plot->graph(0)->rescaleAxes(true);
+    ui->plot->graph(0)->setData(blueline.x, blueline.y);
+    ui->plot->graph(1)->setData(slam.x, slam.y);// green line for map
+    ui->plot->graph(1)->rescaleAxes(true);
 
     ui->plot->replot();
 
@@ -350,5 +418,12 @@ float pointDist(QPoint p, QPoint q){
  void planner::on_pointDraw_clicked()
 {
     pointDraw();
-    searchSpace();
+
+    if(wn_PnPoly(QPoint(cmd.x,cmd.y))!=-1){
+        notify("Error!!!Invalid goal");
+        return;}
+    else{
+        notify("given\t"+QString::number(cmd.x)+"\t"+ QString::number(cmd.y));
+
+        searchSpace();}
 }

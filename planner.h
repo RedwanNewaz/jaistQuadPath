@@ -24,6 +24,7 @@ public:
     void searchSpace();
     float isLeft( QPoint V, QPoint R, QPoint P);
 
+    void populateMap();
 
 
 private slots:
@@ -62,6 +63,7 @@ private:
         double ymin,ymax;
     }lim;
     double resolution;
+    int line;
 
 
 
