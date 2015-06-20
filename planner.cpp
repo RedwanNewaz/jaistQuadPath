@@ -13,6 +13,8 @@ planner::planner(QWidget *parent) :
     graphInit();
     resolution=0.2; //map resolution
 
+    plan=new path;
+
     ui->xBox->setText("X");
     ui->yBox->setText("Y");
     ui->zBox->setText("Z");
@@ -80,99 +82,6 @@ planner::~planner()
      ui->notification->setPlainText(no+msg+pre);
  }
 
- float planner::isLeft( QPoint V, QPoint R, QPoint P){
-    float position =  (R.x()-V.x())*(P.y()-V.y()) - (R.y()-V.y())*(P.x()-V.x());
-    return position;
-}
-
- int planner::wn_PnPoly( QPoint P )
-    {
-    int    wn = 0;    // the  winding number counter
-
-    bool clock,anticlock;
-
-    // loop through all edges of the polygon
-//    clock wise rotation
-    foreach(QPoint V,search_space){
-
-        if (V.y() <= P.y()) {
-            if (R.y() > P.y()){
-
-                if (isLeft( V, R, P) > 0)
-                    ++wn;
-            }
-        }
-        else {                        // start y > P.y (no test needed)
-            if (R.y()  <= P.y()){
-
-                 if (isLeft( V, R, P) < 0)  // P right of  edge
-                     --wn;            // have  a valid down intersect
-            }
-        }
-       }
-    clock=-1*wn;
-//    counter clock rotation
-    wn=0;
-    foreach(QPoint V,search_space){
-
-        if (V.y() <= P.y()) {
-            if (R.y() > P.y()){
-
-                if (isLeft( V, R, P) < 0)
-                    ++wn;
-            }
-        }
-        else {                        // start y > P.y (no test needed)
-            if (R.y()  <= P.y()){
-
-                 if (isLeft( V, R, P) > 0)  // P right of  edge
-                     --wn;            // have  a valid down intersect
-            }
-        }
-       }
-    anticlock=-1*wn;
-
-    if (anticlock && clock)
-        return -1;
-    else
-        return wn;
-    }
-
-
-
-
-//cost Calculator
-/*
- * given point p(x,y)
- *    find the grid resolution for search such that 0.2
- *    find Xmax,Xmin,Ymax,Ymin w.r.t that point inside the SLAM MAP
- * cost APF: 1-{(Xmax+Xmin+Ymax+Ymin)_point/ (Xmax+Xmin+Ymax+Ymin)_map}
- * cost ORIENTATION: is fixed cost and depends on previous position
- * cost Tracking: depends on robot velocity(angular and linear)
- */
-
-
-
-//Probabilistic map
-/*
- * given SLAM MAP and robot position
- * OUTPUT probabilistic cost of each grid
- *
- * Find the neighbor of robot cell
- *  if neighbor is in SLAM MAP
- *      calculate cost
- *  else
- *      discard that grid by assign large NUMBER
- * move to the minimum cost Cell
- * repeat the procedure
- * connect the path based on shortest path algorithm
- *
- */
-
-
-
-bool xLessThan(const QPoint &p1, const QPoint &p2){ return p1.x()<p2.x();}
-bool yLessThan(const QPoint &p1, const QPoint &p2){  return p1.y()<p2.y();}
 usermap map2vector(QVector<QPoint>localmap){
     usermap map;
     foreach(QPoint p,localmap){
@@ -180,42 +89,6 @@ usermap map2vector(QVector<QPoint>localmap){
         map.y.push_back(p.y());
     }
     return map;
-}
-
-int localmapWn( QPoint P, QVector<double> Vx, QVector<double> Vy  )
-   {
-   int    wn = 0;
-   planner *plan;
-    QPoint R(0,0);
-    QVector<QPoint>lmp;
-    qSort(Vx);
-    qSort(Vy);
-    QPoint XY_max(Vx.first(),Vy.first()),XY_min(Vx.last(),Vy.last());
-    lmp.push_back(XY_max);
-    lmp.push_back(XY_min);
-    foreach(QPoint V,lmp){
-
-       if (V.y() <= P.y()) {
-           if (R.y() > P.y()){
-
-               if (plan->isLeft( V, R, P) > 0)
-                   ++wn;
-           }
-       }
-       else {                        // start y > P.y (no test needed)
-           if (R.y()  <= P.y()){
-
-                if (plan->isLeft( V, R, P) < 0)  // P right of  edge
-                    --wn;            // have  a valid down intersect
-           }
-       }
-      }
-        return wn;
-   }
-
-
-float pointDist(QPoint p, QPoint q){
-    return sqrt(pow(p.x()-q.x(),2)+pow(p.y()-q.y(),2));
 }
 
 
@@ -228,7 +101,7 @@ void planner::populateMap(){
 
 //        make a sine wave to indicate the boundary
         //            calculate R
-        float R=pointDist(QPoint(0,0),QPoint(-100,10));
+        float R=plan->pointDist(QPoint(0,0),QPoint(-100,10));
         float phi=0;
         for (float theta=0;theta<=2*M_PI;theta+=resolution){
             double x=R*cos(theta);
@@ -242,63 +115,29 @@ void planner::populateMap(){
 
             }
         }
-
-
-
 }
 
 
  void planner::searchSpace(){
     QString msg;
     msg="search\t";
-    Dstar *dstar = new Dstar();
-    list<state> mypath;
-    int count=0;
-
-
-    QPoint goal(cmd.x,cmd.y);
-
-    qDebug()<<"goal\t"<<goal;
-    QVector<double> searchX,searchY;
-
-//    initialize dstar
-    dstar->init(R.x(),R.y(),goal.x(),goal.y());
-
-
-    for (float i=R.y();i<=lim.ymax;i+=resolution){
-
-        for(float j=lim.xmin;j<=lim.xmax;j+=resolution)
-        {
-            QPoint p(j,i);
-            if(wn_PnPoly(p)==-1){//add cost of each cell
-                dstar->updateCell(j,i,1/pointDist(p,goal));
-                if(pointDist(p,goal)<=0.02 && count<=3)
-                {
-                      searchX.push_back(j);
-                      searchY.push_back(i);
-                      count+=1;
-                }
-
-            }
-            if(count>1)break;
-        }
+    bool result=plan->input(R,QPoint(cmd.x,cmd.y));
+    if(!result){
+        msg+="result not found!!!";
+        notify(msg);
+        return;
     }
-    QPoint mG(searchX.first(),searchY.first()); //moderate goal
+    search_space=plan->output();
     QVector<double>pathx,pathy;
-//    update goal position
-    dstar->updateGoal(mG.x(),mG.y());
-    dstar->replan();
-    mypath=dstar->getPath();
-    foreach(state path,mypath){
-        pathx.push_back(path.x);
-        pathy.push_back(path.y);
+    foreach (QPoint p, search_space){
+        pathx.push_back(p.x());
+        pathy.push_back(p.y());
     }
 
-    msg+="X= "+QString::number(mG.x())+"\tY= "+QString::number(mG.y());
-    notify(msg);
     fermatSpiral1->setData(pathx, pathy);
-//    ui->plot->graph(1)->setData(searchX, searchY);
     ui->plot->replot();
+    msg+="result found";
+    notify(msg);
 
 }
 
@@ -323,8 +162,8 @@ void planner::populateMap(){
 
 //     check point in bounded area
      QPoint point(center_x,center_y);
-     int i=wn_PnPoly(point);
-     qDebug()<<"point "<< point<<"wn\t"<<QString::number(i);
+//     int i=wn_PnPoly(point);
+//     qDebug()<<"point "<< point<<"wn\t"<<QString::number(i);
 
 
 }
@@ -332,43 +171,22 @@ void planner::populateMap(){
  void planner::mapDraw()
 {
 
-//SLAM MAP
-/*
- * find the robot position
- * find out the Xmax and Xmin
- *      for lowest Ymin in Xmax return YXmax*
- *      for lowest Ymin in Xmin retrun YXmin*
- * group {p_max[Xmax YXmax*], p_min[Xmin YXmin*]}
- * From P_max to P_min
- *      connect all the nodes based on shortest distance algorithm
- *
- */
-
 //    find the robot position
+
     robot=cmd;
     R.setX(cmd.x);
     R.setY(cmd.y);
 
 //   dont modify real map
-    foreach(QPoint p,map)
-     search_space.push_back(p);
-
-//    detrmine the area of local map
-
-    qSort(search_space.begin(),search_space.end(),xLessThan);
-    lim.xmax=search_space.last().x();
-    lim.xmin=search_space.first().x();
-    qSort(search_space.begin(),search_space.end(),yLessThan);
-    lim.ymax=search_space.last().y();
-    lim.ymin=search_space.first().y();
+    plan->updatemap(map);
 
 //    modify the local map
-    map.push_front(QPoint(lim.xmax,lim.ymin));
+    map.push_front(QPoint(plan->lim.xmax,plan->lim.ymin));
 
 //    left most point
-    QPoint left(lim.xmin,lim.ymin);
-    QPoint right(lim.xmax,lim.ymin);
-    QPoint start(0,0);
+    QPoint left(plan->lim.xmin,plan->lim.ymin);
+    QPoint right(plan->lim.xmax,plan->lim.ymin);
+    QPoint start=R;
     QVector<QPoint>blueMap;
 
     blueMap.push_back(left);
@@ -377,11 +195,7 @@ void planner::populateMap(){
 
     blueMap.push_back(right);
 
-    qDebug()<<left<<right<<start;
-
-
-
-   usermap blueline=map2vector(blueMap);
+    usermap blueline=map2vector(blueMap);
 
 //     connect curve by green color
     usermap slam=map2vector(map);
@@ -418,12 +232,5 @@ void planner::populateMap(){
  void planner::on_pointDraw_clicked()
 {
     pointDraw();
-
-    if(wn_PnPoly(QPoint(cmd.x,cmd.y))!=-1){
-        notify("Error!!!Invalid goal");
-        return;}
-    else{
-        notify("given\t"+QString::number(cmd.x)+"\t"+ QString::number(cmd.y));
-
-        searchSpace();}
+    searchSpace();
 }

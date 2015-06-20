@@ -3,6 +3,7 @@
 
 #include <QMainWindow>
 #include "qcustomplot.h"
+#include "path.h"
 
 typedef struct {
     QVector<double>x,y;
@@ -22,9 +23,10 @@ public:
     explicit planner(QWidget *parent = 0);
     ~planner();
     void searchSpace();
-    float isLeft( QPoint V, QPoint R, QPoint P);
 
     void populateMap();
+
+    path *plan;
 
 
 private slots:
@@ -40,8 +42,6 @@ private slots:
     void on_plannerButton_clicked();
 
     void pointDraw();
-
-    int wn_PnPoly( QPoint );
 
 
     void on_pointDraw_clicked();
