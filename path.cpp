@@ -33,6 +33,7 @@ void path::updatemap(QVector<QPoint> mp){
 bool path::input(QPoint robot, QPoint Goal){
     R=robot;
     goal=Goal;
+    foundPath.clear();
     if (map.isEmpty()) return false;
     if(wn_PnPoly(goal)==-1)
         return true;
@@ -133,6 +134,23 @@ int path::wn_PnPoly( QPoint P ){
         return -1;
     else
         return wn;
+}
+
+QVector<QPoint> path::traj(){
+    QVector<QPoint> desire;
+    double compute=4;
+
+    QPoint ref(foundPath.first());
+    foreach(QPoint point,foundPath){
+        if(pointDist(point,ref)<compute)
+            desire.push_back(point);
+        else{
+//            for(QPoint piece=point;pointDist(piece,ref)<compute;)
+
+        }
+        ref=point;
+    }
+
 }
 
 //general functions description

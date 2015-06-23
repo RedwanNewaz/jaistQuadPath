@@ -16,12 +16,15 @@ SOURCES += main.cpp\
         planner.cpp \
     qcustomplot.cpp \
     Dstar.cpp \
-    path.cpp
+    path.cpp \
+    pathsmoother.cpp
 
 HEADERS  += planner.h \
     qcustomplot.h \
     ._Dstar.h \
     Dstar.h \
-    path.h
+    path.h \
+    pathsmoother.h \
+    stack.h
 
 FORMS    += planner.ui

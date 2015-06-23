@@ -26,6 +26,8 @@ public:
 
     void populateMap();
 
+    void robotView(QPointF);
+
     path *plan;
 
 
@@ -39,20 +41,20 @@ private slots:
 
     void on_mapDraw_clicked();
 
-    void on_plannerButton_clicked();
-
     void pointDraw();
-
 
     void on_pointDraw_clicked();
 
 
 
 
+    void on_reso_valueChanged(int value);
+
 private:
     Ui::planner *ui;
-    QCPCurve *fermatSpiral1;
-
+    QMutex mutex;
+    QCPCurve *fermatSpiral1, *trajectoryLine;
+    float interval;
     struct user{
         double x;
         double y;

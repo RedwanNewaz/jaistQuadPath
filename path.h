@@ -24,7 +24,7 @@ public:
     bool input(QPoint, QPoint);
     QVector<QPoint> output();
     void updatemap(QVector<QPoint>);
-
+    QVector<QPoint>traj();
 
     float pointDist(QPoint p, QPoint q);
     float isLeft( QPoint V, QPoint R, QPoint P);

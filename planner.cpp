@@ -1,10 +1,5 @@
-#include "planner.h"
-#include "ui_planner.h"
-#include "search.h"
-#include "Dstar.h"
-#include <QDebug>
-#include <QtCore>
-#include <cmath>
+#include "stack.h"
+//https://github.com/KHEngineering/SmoothPathPlanner
 planner::planner(QWidget *parent) :
     QMainWindow(parent),
     ui(new Ui::planner)
@@ -12,12 +7,9 @@ planner::planner(QWidget *parent) :
     ui->setupUi(this);
     graphInit();
     resolution=0.2; //map resolution
+    interval=1;
 
     plan=new path;
-
-    ui->xBox->setText("X");
-    ui->yBox->setText("Y");
-    ui->zBox->setText("Z");
 
     populateMap();
 }
@@ -42,11 +34,13 @@ planner::~planner()
      fermatSpiral1->setPen(QPen(Qt::red));
      fermatSpiral1->setBrush(QBrush(QColor(255, 0, 0, 20)));
 
+     //viuslaize robot triangle instead of trajectory
+     trajectoryLine = new QCPCurve(ui->plot->xAxis, ui->plot->yAxis);
+     ui->plot->addPlottable(trajectoryLine);
+     trajectoryLine->setPen(QPen(Qt::black));
+     trajectoryLine->setBrush(QBrush(QColor(0, 0, 0, 20)));
 
-
-
-
-    // generate some points of data (y0 for first, y1 for second graph):
+     // generate some points of data (y0 for first, y1 for second graph):
     QVector<double> x(250), y0(250), y1(250);
     for (int i=0; i<250; ++i)
     {
@@ -54,8 +48,6 @@ planner::~planner()
       y0[i] = qExp(-i/150.0)*qCos(i/10.0); // exponentially decaying cosine
       y1[i] = qExp(-i/150.0);              // exponential envelope
     }
-    // configure right and top axis to show ticks but no labels:
-    // (see QCPAxisRect::setupFullAxesBox for a quicker method to do this)
     ui->plot->xAxis2->setVisible(true);
     ui->plot->xAxis2->setTickLabels(false);
     ui->plot->yAxis2->setVisible(true);
@@ -66,12 +58,8 @@ planner::~planner()
     // pass data points to graphs:
     ui->plot->graph(0)->setData(x, y0);
     ui->plot->graph(1)->setData(x, y1);
-    // let the ranges scale themselves so graph 0 fits perfectly in the visible area:
     ui->plot->graph(0)->rescaleAxes();
-    // same thing for graph 1, but only enlarge ranges (in case graph 1 is smaller than graph 0):
     ui->plot->graph(1)->rescaleAxes(true);
-    // Note: we could have also just called ui->plot->rescaleAxes(); instead
-    // Allow user to drag axis ranges with mouse, zoom with mouse wheel and select graphs by clicking:
     ui->plot->setInteractions(QCP::iRangeDrag | QCP::iRangeZoom | QCP::iSelectPlottables);
 }
 
@@ -82,7 +70,7 @@ planner::~planner()
      ui->notification->setPlainText(no+msg+pre);
  }
 
-usermap map2vector(QVector<QPoint>localmap){
+ usermap map2vector(QVector<QPoint>localmap){
     usermap map;
     foreach(QPoint p,localmap){
         map.x.push_back(p.x());
@@ -92,7 +80,7 @@ usermap map2vector(QVector<QPoint>localmap){
 }
 
 
-void planner::populateMap(){
+ void planner::populateMap(){
     QPoint map_max,map_min;
         map_max.setX(-100);
         map_max.setY(10);
@@ -117,27 +105,65 @@ void planner::populateMap(){
         }
 }
 
+ void planner::robotView(QPointF p){
+     double r=1;
+     double rot=(M_PI/360)*(60+180);
+     QVector<double>x,y;
+     for(float theta=2*M_PI+rot;theta>=rot;theta-=2*M_PI/3)
+     {
+         x.push_back(p.x()+r*cos(theta));
+         y.push_back(p.y()+r*sin(theta));
+     }
+     x.push_front(p.x()+r*cos(2*M_PI+rot));
+     y.push_front(p.y()+r*sin(2*M_PI+rot));
+
+     trajectoryLine->setData(x, y);
+     ui->plot->replot();
+ }
 
  void planner::searchSpace(){
     QString msg;
     msg="search\t";
-    bool result=plan->input(R,QPoint(cmd.x,cmd.y));
+    QPoint G(cmd.x,cmd.y);
+    robotView(G);
+
+    bool result=plan->input(R,G);
     if(!result){
         msg+="result not found!!!";
         notify(msg);
         return;
     }
     search_space=plan->output();
+    usermap planpath=map2vector(search_space);
+    fermatSpiral1->setData(planpath.x, planpath.y);
+    ui->plot->replot();
+
+
+//    path smoothing
+    pathsmoother *smooth;
+    smooth =new pathsmoother;
+    int dirChange=smooth->DirChange(search_space);
+
+
     QVector<double>pathx,pathy;
-    foreach (QPoint p, search_space){
+    mutex.lock();
+    foreach (QPointF p, smooth->splinePath()){
         pathx.push_back(p.x());
         pathy.push_back(p.y());
+        robotView(p);
+        QThread::msleep(interval/3);
     }
+    mutex.unlock();
 
-    fermatSpiral1->setData(pathx, pathy);
+    trajectoryLine->setData(pathx, pathy);
     ui->plot->replot();
-    msg+="result found";
+
+
+    msg+="result "+QString::number(dirChange);
+
     notify(msg);
+
+
 
 }
 
@@ -219,18 +245,16 @@ void planner::populateMap(){
     mapDraw();
 }
 
- void planner::on_plannerButton_clicked()
-{
-    QString x=ui->xBox->toPlainText();
-    QString y=ui->yBox->toPlainText();
-    QString z=ui->zBox->toPlainText();
-    cmd.x=x.toDouble();
-    cmd.y=y.toDouble();
-    cmd.z=z.toDouble();
-}
 
  void planner::on_pointDraw_clicked()
 {
     pointDraw();
     searchSpace();
+}
+
+void planner::on_reso_valueChanged(int value)
+{
+    QString my("animation interval "+QString::number(value));
+    interval=value;
+    ui->antime->setText(my);
 }
