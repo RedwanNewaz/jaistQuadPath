@@ -4,7 +4,7 @@
 
 pathsmoother::pathsmoother()
 {
-    alpha=120*0.0174532925; //0<->180 larger value ==low slope
+
 }
 
 qreal pathsmoother::slope(QPoint P, QPoint Q){
@@ -34,18 +34,12 @@ int pathsmoother::DirChange(QVector<QPoint> map){
     return count;
 }
 
-float pathsmoother::curvature(float u){
-    double num=2*(u*sin(alpha))*(1-u);
-    double den=3*Len*(2*u*u*(1-cos(alpha))*pow((u*u-2*u+1)+pow((2*u-1), 2),  3/2));
-    return num/den;
-}
 
 void pathsmoother::insertMidPoints(){
     knots.clear();
     knots.push_back(waypoints.first());
     for(int i=0; i<waypoints.size()-1;i++){
 //        qDebug()<<"start "<<waypoints.at(i)<<"\tmid\t"<<MidPoint(waypoints.at(i),waypoints.at(i+1))<<"\tend\t"<<waypoints.at(i+1);
-
         QPoint mid(MidPoint(waypoints.at(i),waypoints.at(i+1)));
 
         if(!knots.contains(mid))
@@ -144,11 +138,9 @@ QVector<QPointF> pathsmoother::splinePath(){
         }
     }
 
-
-//    qDebug()<<spath;
     if(order){
-    spath.push_front(knots.first());
-    spath.push_back(knots.last());
+        spath.push_front(knots.first());
+        spath.push_back(knots.last());
     }
     else{
         spath.push_back(knots.first());

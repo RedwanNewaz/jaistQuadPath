@@ -29,7 +29,6 @@ private:
 protected:
 	void insertMidPoints();
     float p2pLength(QPointF, QPointF);
-	float curvature(float );
     bool findStarting(QPoint,QPoint);
     void reuseResource(QVector<QPoint>);
 
