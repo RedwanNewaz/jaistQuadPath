@@ -151,7 +151,7 @@ planner::~planner()
         pathx.push_back(p.x());
         pathy.push_back(p.y());
         robotView(p);
-        QThread::msleep(interval/3);
+//        QThread::msleep(interval/3);
     }
     mutex.unlock();
 

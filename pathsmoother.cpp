@@ -30,7 +30,7 @@ int pathsmoother::DirChange(QVector<QPoint> map){
     }
     waypoints.push_back(map.last());
     insertMidPoints();
-    splinePath();
+//    splinePath();
     return count;
 }
 
@@ -80,48 +80,82 @@ float pathsmoother::p2pLength(QPointF P, QPointF Q){
 
 }
 
-void pathsmoother::findStarting(QPoint P, QPoint Q){
+bool pathsmoother::findStarting(QPoint P, QPoint Q){
     if (P.x()>Q.x()){
         line.max=P.x();
         line.min=Q.x();
+        return false;
     }
     else{
         line.min=P.x();
         line.max=Q.x();
+        return true;
     }
 }
 
+void pathsmoother::reuseResource(QVector<QPoint>knots){
+
+    X.clear(); Y.clear();
+    order=findStarting(knots.first(),knots.last());
+
+    if(order){
+          double max=0;
+        foreach(QPoint p,knots)
+        {
+            if(p.x()>max)max=p.x();
+            if(X.contains(p.x()))
+               X.push_back(max+0.5);
+            else
+               X.push_back(p.x());
+            Y.push_back(p.y());
+        }
+    }
+    else{
+        double min=1000;
+        foreach(QPoint p,knots)
+        {
+            if(p.x()<min)min=p.x();
+            if(X.contains(p.x()))
+               X.push_front(min-0.5);
+            else
+               X.push_front(p.x());
+            Y.push_front(p.y());
+        }
+    }
+
+
+}
+
+
+
+
 QVector<QPointF> pathsmoother::splinePath(){
     QVector<QPointF>spath;
-
-    QVector<double> X, Y;
-
-    double max=0;
- foreach(QPoint p,knots)
-    {
-        if(p.x()>0)max=p.x();
-
-        if(X.contains(p.x()))
-           X.push_back(max+0.5);
-        else
-           X.push_back(p.x());
-
-        Y.push_back(p.y());
-
-
-    }
- qDebug()<<"x"<<X;
- qDebug()<<"Y"<<Y;
-
     tk::spline s;
-    s.set_points(X.toStdVector(),Y.toStdVector());
 
-    findStarting(knots.first(),knots.last());
+    //change knots X&Y change node update policy
+    if(abs(knots.last().x())>=abs(knots.last().y())){
+        reuseResource(knots);
+        s.set_points(X.toStdVector(),Y.toStdVector());
 
-    for(float i=line.min; i<=line.max; i++)
-       spath.push_back(QPointF(i,s(i)));
+        for(float i=line.min; i<=line.max; i++){
+            QPointF node(i,s(i));
+            spath.push_back(node);
+        }
+    }
+
 
 //    qDebug()<<spath;
+    if(order){
+    spath.push_front(knots.first());
+    spath.push_back(knots.last());
+    }
+    else{
+        spath.push_back(knots.first());
+        spath.push_front(knots.last());
+    }
+
+    qDebug()<<"order"<<order;
 
 
     return spath;

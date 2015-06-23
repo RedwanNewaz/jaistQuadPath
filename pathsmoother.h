@@ -22,13 +22,16 @@ private:
     QVector<QPoint> knots;
     QPoint MidPoint(QPoint, QPoint);
     double avgDist,alpha,Len;
+    QVector<double> X, Y;
+    bool order;
 
 
 protected:
 	void insertMidPoints();
     float p2pLength(QPointF, QPointF);
 	float curvature(float );
-    void findStarting(QPoint,QPoint);
+    bool findStarting(QPoint,QPoint);
+    void reuseResource(QVector<QPoint>);
 
 
 };
