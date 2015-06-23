@@ -80,43 +80,49 @@ float pathsmoother::p2pLength(QPointF P, QPointF Q){
 
 }
 
+void pathsmoother::findStarting(QPoint P, QPoint Q){
+    if (P.x()>Q.x()){
+        line.max=P.x();
+        line.min=Q.x();
+    }
+    else{
+        line.min=P.x();
+        line.max=Q.x();
+    }
+}
+
 QVector<QPointF> pathsmoother::splinePath(){
     QVector<QPointF>spath;
-//    for(int i=0;i<knots.size()-1;i++){
-//        QPoint a=knots.at(i),b=knots.at(i+1);
-//        //calculate chord
-//        double R=p2pLength(a,b);
-//        //find c
 
-//        QPointF a_c( a.x() * cos( 120 *M_PI/180 ) - ( a.y() * sin( 120 *M_PI/180 ) )
-//             , a.x() * sin( 120 *M_PI/180 ) + ( a.y() * cos( 120 *M_PI/180 ) ));
+    QVector<double> X, Y;
 
-//        QPointF b_c(b.x() * cos( 240 *M_PI/180 ) - ( b.y() * sin( 240 *M_PI/180 ) )
-//             , b.x() * sin( 240 *M_PI/180 ) + ( b.y() * cos( 240 *M_PI/180 ) ));
+    double max=0;
+ foreach(QPoint p,knots)
+    {
+        if(p.x()>0)max=p.x();
 
-//        QPointF *c;
-//        c=new QPointF;
-//        QLineF ac(a,a_c),bc(b,b_c);
-//        ac.intersect(bc,c);
-//        qDebug()<<i<<"\tline "<<ac<<" & "<<bc<<" sect "<<*c;
+        if(X.contains(p.x()))
+           X.push_back(max+0.5);
+        else
+           X.push_back(p.x());
 
-////        compute R
-//        double radius=p2pLength(*c,a);
-//        float t=60*M_PI/180,angle;
-//        QLineF c_a(*c,a);
-//        angle=atan(c_a.dy()/c_a.dx());
-//        for (float theta=angle;theta<=angle+t;theta+=avgDist){
-//            Len=radius;
-//            radius+=curvature(radius);
-//            double x=radius*cos(theta);
-//            double y=radius*sin(theta);
-//            spath.push_back(QPointF(x,y));
+        Y.push_back(p.y());
 
-//        }
-//    }
 
-    foreach(QPoint p,knots)
-        spath.push_back(p);
+    }
+ qDebug()<<"x"<<X;
+ qDebug()<<"Y"<<Y;
+
+    tk::spline s;
+    s.set_points(X.toStdVector(),Y.toStdVector());
+
+    findStarting(knots.first(),knots.last());
+
+    for(float i=line.min; i<=line.max; i++)
+       spath.push_back(QPointF(i,s(i)));
+
+//    qDebug()<<spath;
+
 
     return spath;
 }

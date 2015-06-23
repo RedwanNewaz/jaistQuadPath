@@ -2,6 +2,7 @@
 #define STACK_H
 
 #include "search.h"
+#include "spline.h"
 #include "Dstar.h"
 #include "path.h"
 #include "qcustomplot.h"

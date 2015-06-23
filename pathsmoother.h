@@ -12,6 +12,10 @@ public:
     int DirChange(QVector<QPoint>);
     float length(QVector<QPoint>);
     QVector<QPointF> splinePath();
+    struct maxMin{
+        double max,min;
+    }line;
+
 
 
 private:
@@ -24,6 +28,7 @@ protected:
 	void insertMidPoints();
     float p2pLength(QPointF, QPointF);
 	float curvature(float );
+    void findStarting(QPoint,QPoint);
 
 
 };

@@ -25,6 +25,7 @@ HEADERS  += planner.h \
     Dstar.h \
     path.h \
     pathsmoother.h \
-    stack.h
+    stack.h \
+    spline.h
 
 FORMS    += planner.ui
